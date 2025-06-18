@@ -15,11 +15,16 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 [TestClass]
 public class FileSystemProviderTests
 {
+	private static FileSystemProviderOptions TestOptions => new()
+	{
+		ThrowOnTestModeInProduction = false
+	};
+
 	[TestMethod]
 	public void Current_ReturnsDefaultFileSystem_WhenNoFactorySet()
 	{
 		// Arrange
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 
 		// Act
 		IFileSystem result = provider.Current;
@@ -33,7 +38,7 @@ public class FileSystemProviderTests
 	public void SetFileSystemFactory_ThrowsArgumentNullException_WhenFactoryIsNull()
 	{
 		// Arrange
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 
 		// Act & Assert
 		Assert.ThrowsException<ArgumentNullException>(() => provider.SetFileSystemFactory(null!));
@@ -43,7 +48,7 @@ public class FileSystemProviderTests
 	public void SetFileSystemFactory_CachesInstanceWithinAsyncContext()
 	{
 		// Arrange
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act
@@ -60,7 +65,7 @@ public class FileSystemProviderTests
 	public void ResetToDefault_RestoresDefaultFileSystem_WhenFactoryWasSet()
 	{
 		// Arrange
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act
@@ -76,7 +81,7 @@ public class FileSystemProviderTests
 	public void FileSystemProvider_WithFactory_ProvidesIsolatedInstancesPerAsyncContext()
 	{
 		// Arrange
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act & Assert
@@ -96,7 +101,7 @@ public class FileSystemProviderTests
 	public void FileSystemProvider_WithFactory_PreservesStateWithinAsyncContext()
 	{
 		// Arrange
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act - Use the filesystem, then get it again
@@ -115,7 +120,7 @@ public class FileSystemProviderTests
 	public void FileSystemProvider_DefaultInstanceIsLazyInitialized()
 	{
 		// Arrange
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 
 		// Act
 		IFileSystem instance1 = provider.Current;
@@ -129,7 +134,7 @@ public class FileSystemProviderTests
 	public void ResetToDefault_InvalidatesAllAsyncContexts()
 	{
 		// Arrange - Set up factory and get instances in different contexts
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		Task<IFileSystem> task1 = Task.Run(() => provider.Current);
@@ -212,7 +217,7 @@ public class FileSystemProviderTests
 	{
 		// Arrange
 		ServiceCollection services = new();
-		services.AddFileSystemProvider();
+		services.AddFileSystemProvider(TestOptions);
 		services.AddTransient<TestService>();
 
 		using ServiceProvider serviceProvider = services.BuildServiceProvider();
@@ -238,7 +243,7 @@ public class FileSystemProviderTests
 	public void ParallelTests_AreIsolated()
 	{
 		// Arrange
-		FileSystemProvider provider = new();
+		FileSystemProvider provider = new(TestOptions);
 		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act - Run parallel tests
@@ -251,6 +256,130 @@ public class FileSystemProviderTests
 			MockFileSystem mockFS = (MockFileSystem)provider.Current;
 			Assert.IsTrue(mockFS.File.Exists($"test{i}.txt"));
 		});
+	}
+
+	[TestMethod]
+	public void FileSystemProviderOptions_DefaultValues_AreCorrect()
+	{
+		// Arrange & Act
+		FileSystemProviderOptions options = new();
+
+		// Assert
+		Assert.IsTrue(options.ThrowOnTestModeInProduction);
+	}
+
+	[TestMethod]
+	public void FileSystemProvider_WithOptions_UsesConfiguration()
+	{
+		// Arrange
+		FileSystemProviderOptions options = new()
+		{
+			ThrowOnTestModeInProduction = false
+		};
+
+		// Act
+		FileSystemProvider provider = new(options);
+
+		// Assert
+		Assert.IsNotNull(provider);
+		Assert.IsFalse(provider.IsInTestMode);
+	}
+
+	[TestMethod]
+	public void IsInTestMode_ReturnsFalse_WhenNoFactorySet()
+	{
+		// Arrange
+		FileSystemProvider provider = new(TestOptions);
+
+		// Act & Assert
+		Assert.IsFalse(provider.IsInTestMode);
+	}
+
+	[TestMethod]
+	public void IsInTestMode_ReturnsTrue_WhenFactorySet()
+	{
+		// Arrange
+		FileSystemProvider provider = new(TestOptions);
+
+		// Act
+		provider.SetFileSystemFactory(() => new MockFileSystem());
+
+		// Assert
+		Assert.IsTrue(provider.IsInTestMode);
+
+		// Cleanup
+		provider.ResetToDefault();
+	}
+
+	[TestMethod]
+	public void SetFileSystemFactory_ThrowsException_WhenFactoryReturnsNull()
+	{
+		// Arrange
+		FileSystemProviderOptions options = new()
+		{
+			ThrowOnTestModeInProduction = false
+		};
+		FileSystemProvider provider = new(options);
+
+		// Act
+		provider.SetFileSystemFactory(() => null!);
+
+		// Assert - Exception should be thrown when accessing Current
+		Assert.ThrowsException<ArgumentNullException>(() => _ = provider.Current);
+	}
+
+	[TestMethod]
+	public void AddFileSystemProvider_WithOptions_WorksCorrectly()
+	{
+		// Arrange
+		ServiceCollection services = new();
+		FileSystemProviderOptions options = new()
+		{
+			ThrowOnTestModeInProduction = false
+		};
+
+		// Act
+		services.AddFileSystemProvider(options);
+		using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+		// Assert
+		IFileSystemProvider provider = serviceProvider.GetRequiredService<IFileSystemProvider>();
+		Assert.IsNotNull(provider);
+		Assert.IsInstanceOfType<FileSystemProvider>(provider);
+	}
+
+	[TestMethod]
+	public void AddFileSystemProvider_WithOptionsAction_WorksCorrectly()
+	{
+		// Arrange
+		ServiceCollection services = new();
+
+		// Act
+		services.AddFileSystemProvider(options => options.ThrowOnTestModeInProduction = false);
+		using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+		// Assert
+		IFileSystemProvider provider = serviceProvider.GetRequiredService<IFileSystemProvider>();
+		Assert.IsNotNull(provider);
+		Assert.IsInstanceOfType<FileSystemProvider>(provider);
+	}
+
+	[TestMethod]
+	public void FileSystemProviderException_HasCorrectProperties()
+	{
+		// Arrange
+		InvalidOperationException innerException = new("Inner");
+
+		// Act
+		FileSystemProviderException exception = new(
+			FileSystemProviderExceptionType.FactoryReturnsNull,
+			"Test message",
+			innerException);
+
+		// Assert
+		Assert.AreEqual(FileSystemProviderExceptionType.FactoryReturnsNull, exception.ExceptionType);
+		Assert.AreEqual("Test message", exception.Message);
+		Assert.AreSame(innerException, exception.InnerException);
 	}
 
 	[TestCleanup]
