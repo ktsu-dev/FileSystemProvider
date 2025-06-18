@@ -1,6 +1,3 @@
-## v1.0.1 (patch)
+## v1.0.1
 
-Changes since v1.0.0:
-
-- Implement FileSystemProvider with Configuration Options and Custom Exception Handling ([@matt-edmondson](https://github.com/matt-edmondson))
-- Enhance README.md with Production Safety Features ([@matt-edmondson](https://github.com/matt-edmondson))
+No significant changes detected since v1.0.1.
