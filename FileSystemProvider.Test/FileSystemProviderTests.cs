@@ -5,9 +5,11 @@
 namespace ktsu.FileSystemProvider.Test;
 
 using System;
+using System.Collections.Generic;
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
@@ -17,10 +19,10 @@ public class FileSystemProviderTests
 	public void Current_ReturnsDefaultFileSystem_WhenNoFactorySet()
 	{
 		// Arrange
-		FileSystemProvider.ResetToDefault();
+		FileSystemProvider provider = new();
 
 		// Act
-		IFileSystem result = FileSystemProvider.Current;
+		IFileSystem result = provider.Current;
 
 		// Assert
 		Assert.IsNotNull(result);
@@ -30,19 +32,23 @@ public class FileSystemProviderTests
 	[TestMethod]
 	public void SetFileSystemFactory_ThrowsArgumentNullException_WhenFactoryIsNull()
 	{
+		// Arrange
+		FileSystemProvider provider = new();
+
 		// Act & Assert
-		Assert.ThrowsException<ArgumentNullException>(() => FileSystemProvider.SetFileSystemFactory(null!));
+		Assert.ThrowsException<ArgumentNullException>(() => provider.SetFileSystemFactory(null!));
 	}
 
 	[TestMethod]
 	public void SetFileSystemFactory_CachesInstanceWithinAsyncContext()
 	{
 		// Arrange
-		FileSystemProvider.SetFileSystemFactory(() => new MockFileSystem());
+		FileSystemProvider provider = new();
+		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act
-		IFileSystem instance1 = FileSystemProvider.Current;
-		IFileSystem instance2 = FileSystemProvider.Current;
+		IFileSystem instance1 = provider.Current;
+		IFileSystem instance2 = provider.Current;
 
 		// Assert
 		Assert.IsInstanceOfType<MockFileSystem>(instance1);
@@ -54,13 +60,14 @@ public class FileSystemProviderTests
 	public void ResetToDefault_RestoresDefaultFileSystem_WhenFactoryWasSet()
 	{
 		// Arrange
-		FileSystemProvider.SetFileSystemFactory(() => new MockFileSystem());
+		FileSystemProvider provider = new();
+		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act
-		FileSystemProvider.ResetToDefault();
+		provider.ResetToDefault();
 
 		// Assert
-		IFileSystem result = FileSystemProvider.Current;
+		IFileSystem result = provider.Current;
 		Assert.IsNotNull(result);
 		Assert.IsInstanceOfType<FileSystem>(result);
 	}
@@ -69,11 +76,12 @@ public class FileSystemProviderTests
 	public void FileSystemProvider_WithFactory_ProvidesIsolatedInstancesPerAsyncContext()
 	{
 		// Arrange
-		FileSystemProvider.SetFileSystemFactory(() => new MockFileSystem());
+		FileSystemProvider provider = new();
+		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act & Assert
-		Task<IFileSystem> task1 = Task.Run(() => FileSystemProvider.Current);
-		Task<IFileSystem> task2 = Task.Run(() => FileSystemProvider.Current);
+		Task<IFileSystem> task1 = Task.Run(() => provider.Current);
+		Task<IFileSystem> task2 = Task.Run(() => provider.Current);
 
 		IFileSystem result1 = task1.Result;
 		IFileSystem result2 = task2.Result;
@@ -88,13 +96,14 @@ public class FileSystemProviderTests
 	public void FileSystemProvider_WithFactory_PreservesStateWithinAsyncContext()
 	{
 		// Arrange
-		FileSystemProvider.SetFileSystemFactory(() => new MockFileSystem());
+		FileSystemProvider provider = new();
+		provider.SetFileSystemFactory(() => new MockFileSystem());
 
 		// Act - Use the filesystem, then get it again
-		IFileSystem fs1 = FileSystemProvider.Current;
+		IFileSystem fs1 = provider.Current;
 		fs1.File.WriteAllText("test.txt", "test content");
 
-		IFileSystem fs2 = FileSystemProvider.Current;
+		IFileSystem fs2 = provider.Current;
 
 		// Assert - Should be the same instance with preserved state
 		Assert.AreSame(fs1, fs2, "Should get the same cached instance within async context");
@@ -106,11 +115,11 @@ public class FileSystemProviderTests
 	public void FileSystemProvider_DefaultInstanceIsLazyInitialized()
 	{
 		// Arrange
-		FileSystemProvider.ResetToDefault();
+		FileSystemProvider provider = new();
 
 		// Act
-		IFileSystem instance1 = FileSystemProvider.Current;
-		IFileSystem instance2 = FileSystemProvider.Current;
+		IFileSystem instance1 = provider.Current;
+		IFileSystem instance2 = provider.Current;
 
 		// Assert
 		Assert.AreSame(instance1, instance2, "Default instance should be the same lazy-initialized instance");
@@ -120,10 +129,11 @@ public class FileSystemProviderTests
 	public void ResetToDefault_InvalidatesAllAsyncContexts()
 	{
 		// Arrange - Set up factory and get instances in different contexts
-		FileSystemProvider.SetFileSystemFactory(() => new MockFileSystem());
+		FileSystemProvider provider = new();
+		provider.SetFileSystemFactory(() => new MockFileSystem());
 
-		Task<IFileSystem> task1 = Task.Run(() => FileSystemProvider.Current);
-		Task<IFileSystem> task2 = Task.Run(() => FileSystemProvider.Current);
+		Task<IFileSystem> task1 = Task.Run(() => provider.Current);
+		Task<IFileSystem> task2 = Task.Run(() => provider.Current);
 
 		IFileSystem context1Instance = task1.Result;
 		IFileSystem context2Instance = task2.Result;
@@ -133,11 +143,11 @@ public class FileSystemProviderTests
 		Assert.IsInstanceOfType<MockFileSystem>(context2Instance);
 
 		// Act - Reset to default
-		FileSystemProvider.ResetToDefault();
+		provider.ResetToDefault();
 
 		// Assert - All contexts should now return default filesystem
-		Task<IFileSystem> postResetTask1 = Task.Run(() => FileSystemProvider.Current);
-		Task<IFileSystem> postResetTask2 = Task.Run(() => FileSystemProvider.Current);
+		Task<IFileSystem> postResetTask1 = Task.Run(() => provider.Current);
+		Task<IFileSystem> postResetTask2 = Task.Run(() => provider.Current);
 
 		IFileSystem postReset1 = postResetTask1.Result;
 		IFileSystem postReset2 = postResetTask2.Result;
@@ -148,10 +158,115 @@ public class FileSystemProviderTests
 		Assert.AreNotSame(context2Instance, postReset2);
 	}
 
+	[TestMethod]
+	public void AddFileSystemProvider_RegistersServices_Successfully()
+	{
+		// Arrange
+		ServiceCollection services = new();
+
+		// Act
+		services.AddFileSystemProvider();
+		using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+		// Assert
+		IFileSystemProvider provider = serviceProvider.GetRequiredService<IFileSystemProvider>();
+		Assert.IsNotNull(provider);
+		Assert.IsInstanceOfType<FileSystemProvider>(provider);
+	}
+
+	[TestMethod]
+	public void AddFileSystemProvider_WithCustomFactory_RegistersServices_Successfully()
+	{
+		// Arrange
+		ServiceCollection services = new();
+		FileSystemProvider customProvider = new();
+
+		// Act
+		services.AddFileSystemProvider(_ => customProvider);
+		using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+		// Assert
+		IFileSystemProvider provider = serviceProvider.GetRequiredService<IFileSystemProvider>();
+		Assert.IsNotNull(provider);
+		Assert.AreSame(customProvider, provider);
+	}
+
+	[TestMethod]
+	public void FileSystemProvider_IsRegisteredAsSingleton()
+	{
+		// Arrange
+		ServiceCollection services = new();
+		services.AddFileSystemProvider();
+		using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+		// Act
+		IFileSystemProvider provider1 = serviceProvider.GetRequiredService<IFileSystemProvider>();
+		IFileSystemProvider provider2 = serviceProvider.GetRequiredService<IFileSystemProvider>();
+
+		// Assert
+		Assert.AreSame(provider1, provider2, "FileSystemProvider should be registered as singleton");
+	}
+
+	[TestMethod]
+	public void DependencyInjection_Integration_Works()
+	{
+		// Arrange
+		ServiceCollection services = new();
+		services.AddFileSystemProvider();
+		services.AddTransient<TestService>();
+
+		using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+		IFileSystemProvider provider = serviceProvider.GetRequiredService<IFileSystemProvider>();
+		provider.SetFileSystemFactory(() => new MockFileSystem(new Dictionary<string, MockFileData>
+		{
+			{ "test.txt", new MockFileData("Hello World") }
+		}));
+
+		// Act
+		TestService testService = serviceProvider.GetRequiredService<TestService>();
+		string content = testService.ReadFile("test.txt");
+
+		// Assert
+		Assert.AreEqual("Hello World", content);
+
+		// Cleanup
+		provider.ResetToDefault();
+	}
+
+	[TestMethod]
+	public void ParallelTests_AreIsolated()
+	{
+		// Arrange
+		FileSystemProvider provider = new();
+		provider.SetFileSystemFactory(() => new MockFileSystem());
+
+		// Act - Run parallel tests
+		Parallel.For(0, 10, i =>
+		{
+			IFileSystem fileSystem = provider.Current;
+			fileSystem.File.WriteAllText($"test{i}.txt", $"content{i}");
+
+			// Each parallel execution gets its own MockFileSystem
+			MockFileSystem mockFS = (MockFileSystem)provider.Current;
+			Assert.IsTrue(mockFS.File.Exists($"test{i}.txt"));
+		});
+	}
+
 	[TestCleanup]
 	public void TestCleanup()
 	{
-		// Ensure each test starts with a clean state
-		FileSystemProvider.ResetToDefault();
+		// Tests are now isolated by design - no global state to clean up
+	}
+}
+
+// Test service for dependency injection integration test
+public class TestService(IFileSystemProvider fileSystemProvider)
+{
+	private readonly IFileSystemProvider _fileSystemProvider = fileSystemProvider;
+
+	public string ReadFile(string path)
+	{
+		return _fileSystemProvider.Current.File.ReadAllText(path);
 	}
 }

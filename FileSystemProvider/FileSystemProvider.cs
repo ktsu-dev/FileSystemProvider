@@ -9,27 +9,27 @@ using System.IO.Abstractions;
 using System.Threading;
 
 /// <summary>
-/// Provides centralized access to filesystem implementations
+/// Provides access to filesystem implementations with support for dependency injection
 /// </summary>
-public static class FileSystemProvider
+public class FileSystemProvider : IFileSystemProvider
 {
 	// Use the Lazy<T> pattern for thread-safe initialization of the default instance
-	private static readonly Lazy<IFileSystem> _defaultInstance = new(() => new FileSystem());
+	private readonly Lazy<IFileSystem> _defaultInstance = new(() => new FileSystem());
 
 	// Lock to protect shared state modifications
-	private static readonly Lock _lock = new();
+	private readonly Lock _lock = new();
 
 	// Shared factory for testing - set once before tests, cleared once after tests
-	private static Func<IFileSystem>? _testFactory;
+	private Func<IFileSystem>? _testFactory;
 
 	// Use AsyncLocal to cache the created instance per async execution context
 	// This gets replaced entirely when we need to clear all contexts
-	private static AsyncLocal<IFileSystem?> _asyncLocalCache = new();
+	private AsyncLocal<IFileSystem?> _asyncLocalCache = new();
 
 	/// <summary>
 	/// Gets the current filesystem instance
 	/// </summary>
-	public static IFileSystem Current
+	public IFileSystem Current
 	{
 		get
 		{
@@ -66,7 +66,7 @@ public static class FileSystemProvider
 	/// This should be set once before tests and cleared once after tests.
 	/// </summary>
 	/// <param name="factory">A factory function that creates filesystem instances</param>
-	public static void SetFileSystemFactory(Func<IFileSystem> factory)
+	public void SetFileSystemFactory(Func<IFileSystem> factory)
 	{
 		ArgumentNullException.ThrowIfNull(factory);
 
@@ -81,7 +81,7 @@ public static class FileSystemProvider
 	/// <summary>
 	/// Resets the filesystem back to the default implementation for ALL contexts
 	/// </summary>
-	public static void ResetToDefault()
+	public void ResetToDefault()
 	{
 		lock (_lock)
 		{

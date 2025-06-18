@@ -2,5 +2,6 @@
   <ItemGroup>
     <PackageReference Include="TestableIO.System.IO.Abstractions" />
     <PackageReference Include="TestableIO.System.IO.Abstractions.Wrappers" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 </Project>

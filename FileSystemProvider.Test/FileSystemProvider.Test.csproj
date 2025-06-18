@@ -3,6 +3,7 @@
   <ItemGroup>
     <PackageReference Include="TestableIO.System.IO.Abstractions.TestingHelpers" />
     <PackageReference Include="Moq" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
 
   <ItemGroup>

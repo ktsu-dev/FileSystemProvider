@@ -1,1 +1,1 @@
-filesystem;abstractions;testing;mocking;io;provider;thread safe;async;dotnet;system io;testable io
+filesystem;abstractions;testing;mocking;io;provider;dependency injection;thread safe;async;dotnet;system io;testable io;di;context isolation;lazy initialization;factory pattern;mock filesystem;async local
