@@ -1,0 +1,12 @@
+﻿<Project Sdk="ktsu.Sdk.Test">
+
+  <ItemGroup>
+    <PackageReference Include="TestableIO.System.IO.Abstractions.TestingHelpers" />
+    <PackageReference Include="Moq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FileSystemProvider\FileSystemProvider.csproj" />
+  </ItemGroup>
+
+</Project>

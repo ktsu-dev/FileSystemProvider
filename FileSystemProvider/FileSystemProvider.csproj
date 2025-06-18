@@ -1,0 +1,6 @@
+﻿<Project Sdk="ktsu.Sdk.Lib">
+  <ItemGroup>
+    <PackageReference Include="TestableIO.System.IO.Abstractions" />
+    <PackageReference Include="TestableIO.System.IO.Abstractions.Wrappers" />
+  </ItemGroup>
+</Project>
