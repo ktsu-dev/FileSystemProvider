@@ -14,6 +14,7 @@ A clean, dependency injection-first provider for filesystem access in .NET appli
 - **🎯 Clean API**: Single interface focused on dependency injection
 - **🔄 Context Isolation**: Each async context gets its own filesystem instance when testing
 - **🏭 Testing-Focused**: Factory pattern specifically designed for test isolation
+- **🛡️ Production Safe**: Prevents accidental test mode usage in production environments
 - **📦 Zero Configuration**: Works out of the box with sensible defaults
 - **🔗 DI Integration**: Built for Microsoft.Extensions.DependencyInjection
 
@@ -68,6 +69,7 @@ public class DocumentService
 
 #### Properties
 - **`Current`** - Gets the current filesystem instance (IFileSystem)
+- **`IsInTestMode`** - Gets whether the provider is currently in test mode (i.e., a factory has been set)
 
 #### Methods
 - **`SetFileSystemFactory(Func<IFileSystem> factory)`** - Sets a factory for creating test filesystem instances
@@ -77,7 +79,14 @@ public class DocumentService
 
 #### ServiceCollection Extensions
 - **`AddFileSystemProvider()`** - Registers FileSystemProvider as singleton
+- **`AddFileSystemProvider(FileSystemProviderOptions options)`** - Registers FileSystemProvider with configuration options
+- **`AddFileSystemProvider(Action<FileSystemProviderOptions> configureOptions)`** - Registers FileSystemProvider with configuration action
 - **`AddFileSystemProvider(Func<IServiceProvider, IFileSystemProvider> factory)`** - Registers with custom factory
+
+### Configuration Options
+
+#### FileSystemProviderOptions
+- **`ThrowOnTestModeInProduction`** (bool, default: `true`) - Whether to throw an exception when test mode is used in production environments
 
 ## 💼 Production Usage
 
@@ -87,8 +96,21 @@ public class DocumentService
 // Program.cs or Startup.cs
 var services = new ServiceCollection();
 
-// Register FileSystemProvider
+// Register FileSystemProvider (default configuration)
 services.AddFileSystemProvider();
+
+// Or register with custom configuration
+services.AddFileSystemProvider(options =>
+{
+    options.ThrowOnTestModeInProduction = false; // Allow test mode in production (not recommended)
+});
+
+// Or register with options object
+var options = new FileSystemProviderOptions
+{
+    ThrowOnTestModeInProduction = true // Default: true
+};
+services.AddFileSystemProvider(options);
 
 // Register your services
 services.AddTransient<DocumentService>();
@@ -432,11 +454,19 @@ services.AddFileSystemProvider(serviceProvider =>
 public void QuickTest()
 {
     // Arrange
-    var provider = new FileSystemProvider();
+    var provider = new FileSystemProvider(new FileSystemProviderOptions 
+    { 
+        ThrowOnTestModeInProduction = false 
+    });
+    
+    Assert.IsFalse(provider.IsInTestMode);
+    
     provider.SetFileSystemFactory(() => new MockFileSystem(new Dictionary<string, MockFileData>
     {
         { "test.txt", new MockFileData("Hello World") }
     }));
+    
+    Assert.IsTrue(provider.IsInTestMode);
     
     // Act
     var content = provider.Current.File.ReadAllText("test.txt");
@@ -446,10 +476,29 @@ public void QuickTest()
     
     // Cleanup
     provider.ResetToDefault();
+    Assert.IsFalse(provider.IsInTestMode);
 }
 ```
 
 ## 🏗️ Implementation Details
+
+### Production Safety
+By default, the library prevents test mode from being enabled in production environments. This is controlled by the `ThrowOnTestModeInProduction` setting (default: `true`). The library detects production environments by checking:
+
+- Whether a debugger is attached (`Debugger.IsAttached`)
+- Environment variables: `ASPNETCORE_ENVIRONMENT`, `DOTNET_ENVIRONMENT`, `ENVIRONMENT`
+- Values considered non-production: "Development", "Test", "Testing" (case-insensitive)
+
+```csharp
+// This will throw InvalidOperationException in production:
+provider.SetFileSystemFactory(() => new MockFileSystem());
+
+// To allow test mode in production (not recommended):
+var provider = new FileSystemProvider(new FileSystemProviderOptions 
+{ 
+    ThrowOnTestModeInProduction = false 
+});
+```
 
 ### Lazy Initialization
 The default filesystem instance is created using `Lazy<T>` to ensure thread-safe, one-time initialization:
