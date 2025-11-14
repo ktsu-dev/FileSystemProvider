@@ -1,3 +1,6 @@
+## v1.0.2
+
+No significant changes detected since v1.0.2.
 ## v1.0.2 (patch)
 
 Changes since v1.0.1:
@@ -8,9 +11,7 @@ Changes since v1.0.1:
 Changes since v1.0.2-pre.1:
 ## v1.0.2-pre.1 (prerelease)
 
-Changes since v1.0.1:
-
-- Bump the microsoft group with 2 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+Incremental prerelease update.
 ## v1.0.1 (patch)
 
 Changes since v1.0.0:
