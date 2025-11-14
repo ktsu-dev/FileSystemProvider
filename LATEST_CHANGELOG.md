@@ -1,3 +1,5 @@
-## v1.0.2-pre.2 (prerelease)
+## v1.0.2 (patch)
 
-Changes since v1.0.2-pre.1:
+Changes since v1.0.1:
+
+- Update project configurations and workflows ([@matt-edmondson](https://github.com/matt-edmondson))
