@@ -77,9 +77,8 @@ public class FileSystemProvider(FileSystemProviderOptions? options = null) : IFi
 				}
 
 				// Create and cache the instance for this async context
-#pragma warning disable CA1065 // Do not raise exceptions in unexpected locations
-				IFileSystem newInstance = factory() ?? throw new ArgumentNullException(nameof(factory), "Factory function returned null");
-#pragma warning restore CA1065 // Do not raise exceptions in unexpected locations
+				IFileSystem newInstance = factory();
+				Ensure.NotNull(newInstance);
 
 				_asyncLocalCache.Value = newInstance;
 				return newInstance;

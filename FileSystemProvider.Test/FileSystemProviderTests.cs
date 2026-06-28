@@ -41,7 +41,7 @@ public class FileSystemProviderTests
 		FileSystemProvider provider = new(TestOptions);
 
 		// Act & Assert
-		Assert.ThrowsException<ArgumentNullException>(() => provider.SetFileSystemFactory(null!));
+		Assert.ThrowsExactly<ArgumentNullException>(() => provider.SetFileSystemFactory(null!));
 	}
 
 	[TestMethod]
@@ -325,7 +325,7 @@ public class FileSystemProviderTests
 		provider.SetFileSystemFactory(() => null!);
 
 		// Assert - Exception should be thrown when accessing Current
-		Assert.ThrowsException<ArgumentNullException>(() => _ = provider.Current);
+		Assert.ThrowsExactly<ArgumentNullException>(() => _ = provider.Current);
 	}
 
 	[TestMethod]
