@@ -28,7 +28,7 @@ public static class FileSystemProviderExtensions
 	/// <returns>The service collection for method chaining</returns>
 	public static IServiceCollection AddFileSystemProvider(this IServiceCollection services, FileSystemProviderOptions options)
 	{
-		ArgumentNullException.ThrowIfNull(options);
+		Ensure.NotNull(options);
 
 		return services.AddSingleton<IFileSystemProvider>(_ => new FileSystemProvider(options));
 	}
@@ -41,7 +41,7 @@ public static class FileSystemProviderExtensions
 	/// <returns>The service collection for method chaining</returns>
 	public static IServiceCollection AddFileSystemProvider(this IServiceCollection services, Action<FileSystemProviderOptions> configureOptions)
 	{
-		ArgumentNullException.ThrowIfNull(configureOptions);
+		Ensure.NotNull(configureOptions);
 
 		FileSystemProviderOptions options = new();
 		configureOptions(options);

@@ -100,7 +100,7 @@ public class FileSystemProvider(FileSystemProviderOptions? options = null) : IFi
 	/// <exception cref="FileSystemProviderException">Thrown when factory returns null or configuration is invalid</exception>
 	public void SetFileSystemFactory(Func<IFileSystem> factory)
 	{
-		ArgumentNullException.ThrowIfNull(factory);
+		Ensure.NotNull(factory);
 
 		lock (_lock)
 		{
